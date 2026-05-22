@@ -587,7 +587,7 @@ pub struct SegmentCollation {
 
 /// Parameters for `CollationGenerationMessage::SubmitSegment`.
 ///
-/// Submits a segment of collations that share a common scheduling parent and target core. Each
+/// Submits multiple collations that share a common scheduling parent and target core. Each
 /// [`SegmentCollation`] in `collations` carries the fields that may differ between blocks of the
 /// segment (relay parent, collation payload, validation data, etc.).
 #[derive(Debug)]
