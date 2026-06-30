@@ -34,7 +34,7 @@ use zombienet_sdk::{
 };
 
 #[tokio::test(flavor = "multi_thread")]
-async fn v4_resubmit_first_core_across_sessions() -> Result<(), anyhow::Error> {
+async fn v4_resubmit_per_core_across_sessions() -> Result<(), anyhow::Error> {
 	let _ = env_logger::try_init_from_env(
 		env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info"),
 	);
@@ -120,7 +120,6 @@ async fn v4_resubmit_first_core_across_sessions() -> Result<(), anyhow::Error> {
 	assign_cores(&relay_client, 2900, vec![0, 1]).await?;
 	log::info!("Para 2900 elastic-scaled to 3 cores");
 
-	tokio::time::sleep(Duration::from_secs(3600)).await;
 	// Count backed candidates over a window long enough to span ~3 sessions of relay-chain
 	// activity (sessions are ~10 RC blocks each here). The helper internally waits for the
 	// first session change + first backed candidate before counting starts, which absorbs the

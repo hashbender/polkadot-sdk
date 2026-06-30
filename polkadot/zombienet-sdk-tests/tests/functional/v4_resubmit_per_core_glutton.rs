@@ -1,16 +1,10 @@
 // Copyright (C) Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
 
-//! V4 collator-protocol + elastic scaling with **3 actively-authoring collators** on the same
-//! parachain.
-//!
-//! Sibling of [`v4_resubmit_per_core_across_sessions`] reduced to a single difference: instead of
-//! one collator serving para 2900's 3 cores, three collators do. They are seeded with the
-//! Alice/Bob/Charlie well-known keys — which are all in the parachain's genesis Aura authority
-//! set (via `Sr25519Keyring::invulnerable()`) — so each can claim the Aura slot for the para slot
-//! it owns. The resubmission/per-core-routing logic must work the same as the single-collator
-//! baseline. Throughput target is the same (~2.5 backed candidates per RC block at the
-//! elastic-scaling-v3-rpo ceiling); deviations would point to multi-collator topology bugs.
+//! V4 + elastic scaling, **single collator**, with pallet-glutton on the parachain producing
+//! non-empty blocks (consuming ~50% of weight budget each block via the `glutton` patch). Same
+//! topology as `v4_resubmit_per_core_across_sessions`; only difference is the parachain genesis
+//! override that initializes the glutton storage so every block has real work to validate.
 
 use std::time::Duration;
 
@@ -24,27 +18,12 @@ use zombienet_sdk::{
 };
 
 #[tokio::test(flavor = "multi_thread")]
-async fn v4_resubmit_three_collators() -> Result<(), anyhow::Error> {
+async fn v4_resubmit_per_core_glutton() -> Result<(), anyhow::Error> {
 	let _ = env_logger::try_init_from_env(
 		env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info"),
 	);
 
 	let images = zombienet_sdk::environment::get_images_from_env();
-
-	// Per-collator args: zombienet-sdk's `with_args` **overrides** `with_default_args`
-	// (zombienet-configuration's `NodeConfigBuilder::with_args` doc), so each collator's vec
-	// must repeat the parachain log filter and `--authoring=slot-based`. Order: parachain
-	// args first, then the keyring flag, then `--` separator + relay-chain archive flags.
-	fn collator_args(keyring_flag: &'static str) -> Vec<zombienet_sdk::Arg> {
-		vec![
-			"-lparachain=debug,aura=debug,aura::cumulus=trace,basic-authorship=debug,sync=debug,sync::import-queue=debug,sc_consensus::block_import=debug,cumulus_client_consensus_common=debug,parachain::collator-protocol=trace".into(),
-			"--authoring=slot-based".into(),
-			keyring_flag.into(),
-			"--".into(),
-			"--state-pruning=archive".into(),
-			"--blocks-pruning=archive".into(),
-		]
-	}
 
 	let config = NetworkConfigBuilder::new()
 		.with_relaychain(|r| {
@@ -81,15 +60,26 @@ async fn v4_resubmit_three_collators() -> Result<(), anyhow::Error> {
 				.with_default_command("test-parachain")
 				.with_default_image(images.cumulus.as_str())
 				.with_chain("elastic-scaling-v3-rpo")
-				.with_collator(|n| {
-					n.with_name("collator-alice")
-				})
-				.with_collator(|n| {
-					n.with_name("collator-bob")
-				})
-				.with_collator(|n| {
-					n.with_name("collator-charlie")
-				})
+				// Make every parablock non-empty: pallet-glutton consumes ~10% of compute and
+				// ~50% of proof-size each block via on_idle work. `trashDataCount=5120` seeds
+				// the trash-data map so storage proofs have realistic size.
+				.with_genesis_overrides(json!({
+					"patch": {
+						"glutton": {
+							"compute": "100000000",
+							"storage": "500000000",
+							"trashDataCount": 5120
+						}
+					}
+				}))
+				.with_default_args(vec![
+					("-lparachain=debug,aura=debug,parachain::collator-protocol=trace,aura::cumulus=debug,basic-authorship=debug").into(),
+					"--authoring=slot-based".into(),
+					"--".into(),
+					"--state-pruning=archive".into(),
+					"--blocks-pruning=archive".into(),
+				])
+				.with_collator(|n| n.with_name("collator-2900"))
 		})
 		.build()
 		.map_err(|e| {
@@ -101,17 +91,17 @@ async fn v4_resubmit_three_collators() -> Result<(), anyhow::Error> {
 	let network = spawn_fn(config).await?;
 
 	let relay_node = network.get_node("validator-0")?;
-	let collator_alice = network.get_node("collator-alice")?;
+	let collator_node = network.get_node("collator-2900")?;
 	let relay_client: OnlineClient<PolkadotConfig> = relay_node.wait_client().await?;
 
 	assign_cores(&relay_client, 2900, vec![0, 1]).await?;
-	log::info!("Para 2900 elastic-scaled to 3 cores with 3 collators (alice/bob/charlie)");
+	log::info!("Para 2900 elastic-scaled to 3 cores, glutton at ~50% compute/storage");
 
-	assert_para_throughput(&relay_client, 100, [(ParaId::from(2900), 250..310)], []).await?;
+	assert_para_throughput(&relay_client, 100, [(ParaId::from(2900), 150..310)], []).await?;
 
-	let collator_client: OnlineClient<PolkadotConfig> = collator_alice.wait_client().await?;
+	let collator_client: OnlineClient<PolkadotConfig> = collator_node.wait_client().await?;
 	assert_finality_lag(&collator_client, 10).await?;
 
-	log::info!("V4 3-collator test finished successfully");
+	log::info!("V4 per-core glutton test finished successfully");
 	Ok(())
 }
