@@ -20,19 +20,24 @@
 //! The block builder sends just headers across; the collation task calls [`hydrate_segment`] to
 //! re-assemble each unincluded parablock into a [`SegmentEntry`] (body + storage proof + relay
 //! data + validation-code hash) which the collator service can turn into a `SegmentCollation`.
+//!
+//! Both the block-builder and block-import paths write a [`StoredEntry`] keyed by parablock hash
+//! at the same time they write the block, capturing the relay-parent header, session, and
+//! persisted-validation-data the block was built/validated against. Hydration anchors on that
+//! entry: the parablock hash on the header identifies the entry uniquely, and the relay-parent
+//! identity + PVD are read straight from the store rather than re-resolved against a relay-chain
+//! client whose blocks may have rotated out of view in the meantime.
+//!
+//! [`StoredEntry`]: cumulus_client_resubmission_store::StoredEntry
 
-use super::relay_chain_data_cache::RelayChainDataCache;
 use codec::Encode;
-use cumulus_client_consensus_common::{
-	parent_search::extract_relay_parent_or_lookup, ValidationCodeHashProvider,
-};
+use cumulus_client_consensus_common::ValidationCodeHashProvider;
 use cumulus_client_resubmission_store::ResubmissionStore;
 use cumulus_primitives_core::{relay_chain::Hash as RelayHash, PersistedValidationData};
-use cumulus_relay_chain_interface::RelayChainInterface;
 use polkadot_primitives::ValidationCodeHash;
 use sc_client_api::{backend::AuxStore, Backend};
 use sp_api::StorageProof;
-use sp_blockchain::{Backend as BlockchainBackend, HeaderBackend};
+use sp_blockchain::{Backend as BlockchainBackend, Error as BlockchainError, HeaderBackend};
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 
 /// One unincluded parablock's collation-ready payload.
@@ -45,92 +50,139 @@ pub struct SegmentEntry<Block: BlockT> {
 	pub validation_data: PersistedValidationData,
 }
 
+/// Why a single unincluded-segment header could not be hydrated into a [`SegmentEntry`].
+///
+/// Carries only the *cause*; the caller is expected to attach the failing block's number/hash to
+/// its log line. None of these are fatal at the segment level — `hydrate_segment` skips the entry
+/// and continues with the rest.
+#[derive(Debug, thiserror::Error)]
+pub enum HydrateError {
+	/// No stored proof/relay-parent metadata in the resubmission store (pruned on finality, or
+	/// never written — e.g. block was imported before the store was wired up).
+	#[error("no stored storage-proof entry (entry was pruned or never written)")]
+	StoredEntryMissing,
+	/// The resubmission store errored on read.
+	#[error("resubmission store load failed: {0}")]
+	StoreLoad(BlockchainError),
+	/// The parent parablock's header is not in the local backend (pruned or never imported).
+	#[error("parent header not in the parachain backend")]
+	ParentHeaderMissing,
+	/// The parachain backend errored while looking up the parent header.
+	#[error("parachain backend errored looking up parent header: {0}")]
+	ParentHeaderBackend(BlockchainError),
+	/// The block's body is not in the local backend.
+	#[error("block body not in the parachain backend")]
+	BodyMissing,
+	/// The parachain backend errored while looking up the block body.
+	#[error("parachain backend errored looking up block body: {0}")]
+	BodyBackend(BlockchainError),
+	/// No validation-code hash known at the parent parablock.
+	#[error("no validation-code hash at parent")]
+	NoValidationCodeHash,
+}
+
 const LOG_TARGET: &str = "consensus::slot_based::unincluded_segment";
 
 /// Hydrate a list of unincluded-segment headers into [`SegmentEntry`]s by calling
-/// [`build_entry`] on each. Headers that fail to hydrate locally are logged and skipped — the
-/// rest of the segment is preserved.
-pub(super) async fn hydrate_segment<Block, B, Client, RClient, CHP>(
+/// [`build_entry`] on each. Headers that fail to hydrate locally are skipped — the rest of the
+/// segment is preserved. The specific failure cause is reported via [`HydrateError`] and logged
+/// here with the failing block's number/hash.
+pub(super) fn hydrate_segment<Block, B, Client, CHP>(
 	headers: Vec<Block::Header>,
 	para_backend: &B,
 	code_hash_provider: &CHP,
 	store: &ResubmissionStore<Block, Client>,
-	relay_chain_data_cache: &mut RelayChainDataCache<RClient>,
 ) -> Vec<SegmentEntry<Block>>
 where
 	Block: BlockT,
 	B: Backend<Block>,
 	Client: AuxStore,
-	RClient: RelayChainInterface + Clone + 'static,
 	CHP: ValidationCodeHashProvider<Block::Hash>,
 {
 	let mut entries = Vec::with_capacity(headers.len());
 	for header in headers {
 		let block_number = *header.number();
 		let block_hash = header.hash();
-		match build_entry(header, para_backend, code_hash_provider, store, relay_chain_data_cache)
-			.await
-		{
-			Some(entry) => entries.push(entry),
-			None => tracing::warn!(
+		match build_entry(header, para_backend, code_hash_provider, store) {
+			Ok(entry) => entries.push(entry),
+			Err(err) => tracing::warn!(
 				target: LOG_TARGET,
 				?block_number,
 				?block_hash,
-				"Skipping unincluded-segment entry: could not hydrate header (missing body/proof/relay data).",
+				%err,
+				"Skipping unincluded-segment entry.",
 			),
 		}
 	}
 	entries
 }
 
-/// Rebuild a [`SegmentEntry`] for one unincluded parablock by combining its header with the
-/// locally-stored body and storage proof, the relay-chain data at the block's relay parent, and
-/// the validation-code hash at the block's para parent.
+/// Rebuild a [`SegmentEntry`] for one unincluded parablock.
 ///
-/// Returns `None` when any input is missing locally (no body, no stored proof, no relay data,
-/// no code hash) — the caller skips that entry rather than aborting the whole segment.
-pub(super) async fn build_entry<Block, B, Client, RClient, CHP>(
+/// The [`ResubmissionStore`] entry for the block's hash is the anchor: it carries the proof, the
+/// relay-parent header, and the persisted-validation-data captured at build/import time. From
+/// those, only the parachain-local body + parent header + validation-code hash still need to be
+/// looked up here. No relay-chain client call is made — once the entry is in the store, hydration
+/// is purely local.
+///
+/// Returns a [`HydrateError`] variant identifying *which* lookup failed; the caller (typically
+/// [`hydrate_segment`]) logs it with the failing block's number/hash. All variants are recoverable
+/// at the segment level: a missing entry means the historical can't be re-shipped, not that the
+/// whole resubmit must abort.
+pub(super) fn build_entry<Block, B, Client, CHP>(
 	header: Block::Header,
 	para_backend: &B,
 	code_hash_provider: &CHP,
 	store: &ResubmissionStore<Block, Client>,
-	relay_chain_data_cache: &mut RelayChainDataCache<RClient>,
-) -> Option<SegmentEntry<Block>>
+) -> Result<SegmentEntry<Block>, HydrateError>
 where
 	Block: BlockT,
 	B: Backend<Block>,
 	Client: AuxStore,
-	RClient: RelayChainInterface + Clone + 'static,
 	CHP: ValidationCodeHashProvider<Block::Hash>,
 {
 	let block_hash = header.hash();
 	let parent_hash = *header.parent_hash();
 
-	let relay_parent: RelayHash = extract_relay_parent_or_lookup::<Block>(
-		header.digest(),
-		relay_chain_data_cache.relay_client(),
-	)
-	.await
-	.ok()
-	.flatten()?;
+	// Anchor: the store row keyed by the block's hash carries the proof, the relay-parent
+	// header, and the PVD captured at build/import time. If it isn't there we can't resubmit.
+	let stored = store
+		.load(block_hash)
+		.map_err(HydrateError::StoreLoad)?
+		.ok_or(HydrateError::StoredEntryMissing)?;
 
-	let parent_header = para_backend.blockchain().header(parent_hash).ok().flatten()?;
-	let body = para_backend.blockchain().body(block_hash).ok().flatten()?;
+	let relay_parent: RelayHash = stored.relay_parent_header.hash();
+
+	let parent_header = para_backend
+		.blockchain()
+		.header(parent_hash)
+		.map_err(HydrateError::ParentHeaderBackend)?
+		.ok_or(HydrateError::ParentHeaderMissing)?;
+
+	let body = para_backend
+		.blockchain()
+		.body(block_hash)
+		.map_err(HydrateError::BodyBackend)?
+		.ok_or(HydrateError::BodyMissing)?;
 	let block = Block::new(header, body);
 
-	let stored = store.load(block_hash).ok().flatten()?;
+	let validation_code_hash =
+		code_hash_provider.code_hash_at(parent_hash).ok_or(HydrateError::NoValidationCodeHash)?;
 
-	let relay_data = relay_chain_data_cache.get_by_hash(relay_parent).await.ok()?;
+	// The stored PVD was obtained from the relay chain with `OccupiedCoreAssumption::TimedOut`
+	// (see `resubmission::resolve_session_and_pvd`), so its `parent_head` is the
+	// **currently-included** head at write time — correct for the first unincluded block, but
+	// stale for any position-2+ block whose actual para parent is an older unincluded ancestor.
+	// Validators verify against the block's true parent, so override the field with the actual
+	// para parent's encoded header. The other PVD fields (`relay_parent_number`,
+	// `relay_parent_storage_root`, `max_pov_size`) are properties of the relay parent and
+	// remain valid regardless of which para parent we anchor on.
 	let validation_data = PersistedValidationData {
 		parent_head: parent_header.encode().into(),
-		relay_parent_number: *relay_data.relay_header.number(),
-		relay_parent_storage_root: *relay_data.relay_header.state_root(),
-		max_pov_size: relay_data.max_pov_size,
+		..stored.persisted_validation_data.clone()
 	};
 
-	let validation_code_hash = code_hash_provider.code_hash_at(parent_hash)?;
-
-	Some(SegmentEntry {
+	Ok(SegmentEntry {
 		relay_parent,
 		parent_header,
 		blocks: vec![block],

@@ -24,17 +24,6 @@ async fn v4_resubmit_three_collators_glutton() -> Result<(), anyhow::Error> {
 
 	let images = zombienet_sdk::environment::get_images_from_env();
 
-	fn collator_args(keyring_flag: &'static str) -> Vec<zombienet_sdk::Arg> {
-		vec![
-			"-lparachain=debug,aura=debug,aura::cumulus=trace,basic-authorship=debug,sync=debug,sync::import-queue=debug,sc_consensus::block_import=debug,cumulus_client_consensus_common=debug,parachain::collator-protocol=trace".into(),
-			"--authoring=slot-based".into(),
-			keyring_flag.into(),
-			"--".into(),
-			"--state-pruning=archive".into(),
-			"--blocks-pruning=archive".into(),
-		]
-	}
-
 	let config = NetworkConfigBuilder::new()
 		.with_relaychain(|r| {
 			let r = r
@@ -70,6 +59,13 @@ async fn v4_resubmit_three_collators_glutton() -> Result<(), anyhow::Error> {
 				.with_default_command("test-parachain")
 				.with_default_image(images.cumulus.as_str())
 				.with_chain("elastic-scaling-v3-rpo")
+				.with_default_args(vec![
+					"-lparachain=debug,aura=debug,aura::cumulus=trace,basic-authorship=debug,sync=debug,sync::import-queue=debug,sc_consensus::block_import=debug,cumulus_client_consensus_common=debug,parachain::collator-protocol=trace".into(),
+					"--authoring=slot-based".into(),
+					"--".into(),
+					"--state-pruning=archive".into(),
+					"--blocks-pruning=archive".into(),
+				])
 				.with_genesis_overrides(json!({
 					"patch": {
 						"glutton": {
@@ -79,15 +75,15 @@ async fn v4_resubmit_three_collators_glutton() -> Result<(), anyhow::Error> {
 						}
 					}
 				}))
-				.with_collator(|n| {
+				.with_collator(|n|
 					n.with_name("collator-alice")
-				})
-				.with_collator(|n| {
+				)
+				.with_collator(|n|
 					n.with_name("collator-bob")
-				})
-				.with_collator(|n| {
+				)
+				.with_collator(|n|
 					n.with_name("collator-charlie")
-				})
+				)
 		})
 		.build()
 		.map_err(|e| {

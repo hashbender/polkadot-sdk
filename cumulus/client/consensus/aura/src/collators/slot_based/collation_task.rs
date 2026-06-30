@@ -41,7 +41,6 @@ use sc_utils::mpsc::TracingUnboundedReceiver;
 use sp_runtime::traits::{Block as BlockT, Header};
 
 use super::{
-	relay_chain_data_cache::RelayChainDataCache,
 	unincluded_segment::{hydrate_segment, SegmentEntry},
 	CollatorMessage, CollatorResubmitSegment, SegmentKind,
 };
@@ -106,7 +105,6 @@ pub async fn run_collation_task<Block, B, Client, RClient, CHP, CS>(
 	CS: CollatorServiceInterface<Block> + Send + Sync + 'static,
 	RClient: RelayChainInterface + Clone + 'static,
 {
-	let mut relay_chain_data_cache = RelayChainDataCache::new(relay_client.clone(), para_id);
 	let Ok(mut overseer_handle) = relay_client.overseer_handle() else {
 		tracing::error!(target: LOG_TARGET, "Failed to get overseer handle.");
 		return;
@@ -146,7 +144,6 @@ pub async fn run_collation_task<Block, B, Client, RClient, CHP, CS>(
 					&*para_backend,
 					&store,
 					&code_hash_provider,
-					&mut relay_chain_data_cache,
 				).await;
 			},
 			block_import_msg = block_import_handle.next().fuse() => {
@@ -271,7 +268,6 @@ async fn handle_resubmit_segment<Block, B, Client, RClient, CHP>(
 	para_backend: &B,
 	store: &ResubmissionStore<Block, Client>,
 	code_hash_provider: &CHP,
-	relay_chain_data_cache: &mut RelayChainDataCache<RClient>,
 ) where
 	Block: BlockT,
 	B: Backend<Block>,
@@ -299,14 +295,7 @@ async fn handle_resubmit_segment<Block, B, Client, RClient, CHP>(
 		"Received resubmit segment.",
 	);
 
-	let entries = hydrate_segment(
-		unincluded_segment,
-		para_backend,
-		code_hash_provider,
-		store,
-		relay_chain_data_cache,
-	)
-	.await;
+	let entries = hydrate_segment(unincluded_segment, para_backend, code_hash_provider, store);
 
 	let mut collations = Vec::with_capacity(entries.len() + bundle.is_some() as usize);
 

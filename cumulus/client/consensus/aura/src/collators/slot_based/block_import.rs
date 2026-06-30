@@ -228,39 +228,78 @@ impl<Block: BlockT, BI, Client> SlotBasedBlockImport<Block, BI, Client> {
 
 	/// Resolve, from the relay chain, the data needed to record a resubmission entry for an
 	/// imported block built against the relay parent in `relay_block_identifier`.
+	///
+	/// Handles both digest forms: `RelayParent(hash)` is consumed directly, and the storage-root +
+	/// number form (RPSR) is resolved by fetching the relay header at that number and verifying
+	/// its `state_root` matches the digest's storage root — same protocol as
+	/// `extract_relay_parent_or_lookup`. Returns `None` on any failure (no entry recorded).
 	async fn resolve_resubmission_data(
 		&self,
 		relay_block_identifier: &RelayBlockIdentifier,
 	) -> Option<(RelayHeader, SessionIndex, PersistedValidationData)> {
-		let RelayBlockIdentifier::ByHash(relay_parent) = relay_block_identifier else {
-			return None;
-		};
-		let relay_parent = *relay_parent;
-
 		let (relay_client, para_id) = self.relay_data_source.get()?;
 		let para_id = *para_id;
 
-		let relay_parent_header = match relay_client.header(BlockId::Hash(relay_parent)).await {
-			Ok(Some(header)) => header,
-			Ok(None) => {
-				tracing::debug!(
-					target: LOG_TARGET,
-					?relay_parent,
-					"Relay parent header unavailable; skipping resubmission entry.",
-				);
-				return None;
-			},
-			Err(err) => {
-				tracing::debug!(
-					target: LOG_TARGET,
-					?relay_parent,
-					?err,
-					"Failed to fetch relay parent header; skipping resubmission entry.",
-				);
-				return None;
+		let relay_parent_header = match relay_block_identifier {
+			RelayBlockIdentifier::ByHash(hash) =>
+				match relay_client.header(BlockId::Hash(*hash)).await {
+					Ok(Some(header)) => header,
+					Ok(None) => {
+						tracing::debug!(
+							target: LOG_TARGET,
+							relay_parent = ?hash,
+							"Relay parent header unavailable; skipping resubmission entry.",
+						);
+						return None;
+					},
+					Err(err) => {
+						tracing::debug!(
+							target: LOG_TARGET,
+							relay_parent = ?hash,
+							?err,
+							"Failed to fetch relay parent header; skipping resubmission entry.",
+						);
+						return None;
+					},
+				},
+			RelayBlockIdentifier::ByStorageRoot { storage_root, block_number } => {
+				let header = match relay_client.header(BlockId::Number(*block_number)).await {
+					Ok(Some(h)) => h,
+					Ok(None) => {
+						tracing::debug!(
+							target: LOG_TARGET,
+							?block_number,
+							?storage_root,
+							"Relay block at RPSR number not available; skipping resubmission entry.",
+						);
+						return None;
+					},
+					Err(err) => {
+						tracing::debug!(
+							target: LOG_TARGET,
+							?block_number,
+							?storage_root,
+							?err,
+							"Failed to fetch relay block at RPSR number; skipping resubmission entry.",
+						);
+						return None;
+					},
+				};
+				if header.state_root != *storage_root {
+					tracing::debug!(
+						target: LOG_TARGET,
+						?block_number,
+						?storage_root,
+						actual_state_root = ?header.state_root,
+						"RPSR state-root mismatch at the indicated relay block; skipping resubmission entry.",
+					);
+					return None;
+				}
+				header
 			},
 		};
 
+		let relay_parent = relay_parent_header.hash();
 		let (relay_parent_session, persisted_validation_data) =
 			resolve_session_and_pvd(&**relay_client, relay_parent, para_id).await?;
 
@@ -386,6 +425,13 @@ impl<Block: BlockT, BI, Client> SlotBasedBlockImport<Block, BI, Client> {
 			self.resolve_resubmission_data(&relay_block_identifier).await
 		{
 			let time_ms = now_unix_ms();
+			let block_number = params.header.number();
+			tracing::info!(
+				target: LOG_TARGET,
+				?block_hash,
+				?block_number,
+				"Imported block: recording resubmission entry in auxiliary store.",
+			);
 			prepare_resubmission_aux_data::<Block>(
 				block_hash,
 				time_ms,

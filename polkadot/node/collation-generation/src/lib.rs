@@ -346,6 +346,13 @@ impl CollationGenerationSubsystem {
 		}
 		let sender = ctx.sender();
 		let len = segment_entries.len();
+		gum::info!(
+			target: LOG_TARGET,
+			?scheduling_parent,
+			?core_index,
+			segment_len = len,
+			"SubmitSegment: built segment after pushing the freshly built collation.",
+		);
 		let candidates =
 			BoundedVec::try_from(segment_entries).map_err(|_| Error::InvalidSegmentSize(len))?;
 		sender

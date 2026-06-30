@@ -66,8 +66,8 @@ async fn v4_resubmit_per_core_glutton() -> Result<(), anyhow::Error> {
 				.with_genesis_overrides(json!({
 					"patch": {
 						"glutton": {
-							"compute": "100000000",
-							"storage": "500000000",
+							"compute": "200000000",
+							"storage": "7000000000",
 							"trashDataCount": 5120
 						}
 					}
