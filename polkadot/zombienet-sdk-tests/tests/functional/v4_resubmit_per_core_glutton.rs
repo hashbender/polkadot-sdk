@@ -97,7 +97,7 @@ async fn v4_resubmit_per_core_glutton() -> Result<(), anyhow::Error> {
 	assign_cores(&relay_client, 2900, vec![0, 1]).await?;
 	log::info!("Para 2900 elastic-scaled to 3 cores, glutton at ~50% compute/storage");
 
-	assert_para_throughput(&relay_client, 100, [(ParaId::from(2900), 150..310)], []).await?;
+	assert_para_throughput(&relay_client, 100, [(ParaId::from(2900), 210..310)], []).await?;
 
 	let collator_client: OnlineClient<PolkadotConfig> = collator_node.wait_client().await?;
 	assert_finality_lag(&collator_client, 10).await?;
