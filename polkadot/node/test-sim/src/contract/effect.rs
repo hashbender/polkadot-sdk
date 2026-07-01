@@ -128,6 +128,13 @@ pub enum WireMsgKind {
 		/// Semantic content of the advertisement.
 		summary: AdvertisementSummary,
 	},
+	/// `AdvertiseSegment(...)` — an ordered segment of advertisements (V4).
+	AdvertiseSegment {
+		/// Scheduling parent shared by the whole segment.
+		scheduling_parent: Hash,
+		/// Per-candidate advertisement summaries, in segment order.
+		candidates: Vec<AdvertisementSummary>,
+	},
 	/// `CollationSeconded(relay_parent, statement)`.
 	CollationSeconded {
 		/// Relay parent the seconded statement is anchored at.
