@@ -173,9 +173,73 @@ struct ValidatorGroup {
 	/// Bits indicating which validators have already seen the announcement
 	/// per candidate.
 	advertised_to: HashMap<CandidateHash, BitVec>,
+
+	/// Bits indicating which validators the current segment (per core) has
+	/// already been advertised to. Used by the segment advertisement path.
+	segment_advertised_to: BitVec,
 }
 
 impl ValidatorGroup {
+	/// Returns `true` if we should advertise the segment to the given peer.
+	fn should_advertise_segment(
+		&self,
+		peer_ids: &HashMap<PeerId, HashSet<AuthorityDiscoveryId>>,
+		peer: &PeerId,
+	) -> ShouldAdvertiseTo {
+		let authority_ids = match peer_ids.get(peer) {
+			Some(authority_ids) => authority_ids,
+			None => return ShouldAdvertiseTo::NotAuthority,
+		};
+
+		for id in authority_ids {
+			// One peer id may correspond to different discovery ids across sessions,
+			// having a non-empty intersection is sufficient to assume that this peer
+			// belongs to this particular validator group.
+			let validator_index = match self.validators.iter().position(|v| v == id) {
+				Some(idx) => idx,
+				None => continue,
+			};
+
+			// The corresponding bit is not set, i.e. the segment was not yet advertised.
+			if !self.segment_advertised_to.get(validator_index).map(|b| *b).unwrap_or(false) {
+				return ShouldAdvertiseTo::Yes;
+			} else {
+				return ShouldAdvertiseTo::AlreadyAdvertised;
+			}
+		}
+
+		ShouldAdvertiseTo::NotAuthority
+	}
+
+	/// Should be called after we advertised the segment to the given `peer` to keep track of it.
+	fn segment_advertised_to_peer(
+		&mut self,
+		peer_ids: &HashMap<PeerId, HashSet<AuthorityDiscoveryId>>,
+		peer: &PeerId,
+	) {
+		if let Some(authority_ids) = peer_ids.get(peer) {
+			for id in authority_ids {
+				let validator_index = match self.validators.iter().position(|v| v == id) {
+					Some(idx) => idx,
+					None => continue,
+				};
+				self.segment_advertised_to.set(validator_index, true);
+			}
+		}
+	}
+
+	/// Resets the segment advertised state for the given peer. Should be called when the peer
+	/// disconnects so that we re-advertise the segment when they reconnect.
+	fn reset_segment_advertised_to_peer(&mut self, authority_ids: &HashSet<AuthorityDiscoveryId>) {
+		for id in authority_ids {
+			let validator_index = match self.validators.iter().position(|v| v == id) {
+				Some(idx) => idx,
+				None => continue,
+			};
+			self.segment_advertised_to.set(validator_index, false);
+		}
+	}
+
 	/// Returns `true` if we should advertise our collation to the given peer.
 	fn should_advertise_to(
 		&self,
@@ -334,6 +398,7 @@ impl PerSchedulingParent {
 			let GroupValidators { validators } =
 				determine_our_validators(ctx, runtime, *core, block_hash).await?;
 			let mut group = ValidatorGroup::default();
+			group.segment_advertised_to = bitvec![0; validators.len()];
 			group.validators = validators;
 			validator_groups.insert(*core, group);
 		}
@@ -586,6 +651,7 @@ async fn distribute_collation<Context>(
 	// Insert validator group for the `core_index` at relay parent.
 	per_scheduling_parent.validator_group.entry(core_index).or_insert_with(|| {
 		let mut group = ValidatorGroup::default();
+		group.segment_advertised_to = bitvec![0; validators.len()];
 		group.validators = validators;
 		group
 	});
@@ -725,6 +791,7 @@ async fn distribute_segment<Context>(
 		return Ok(());
 	};
 
+	let clock = state.clock.clone();
 	let per_scheduling_parent = match state.per_scheduling_parent.get_mut(&scheduling_parent) {
 		Some(per_scheduling_parent) => per_scheduling_parent,
 		None => {
@@ -792,6 +859,7 @@ async fn distribute_segment<Context>(
 	// Insert validator group for the `core_index` at scheduling parent.
 	per_scheduling_parent.validator_group.entry(core_index).or_insert_with(|| {
 		let mut group = ValidatorGroup::default();
+		group.segment_advertised_to = bitvec![0; validators.len()];
 		group.validators = validators;
 		group
 	});
@@ -835,11 +903,12 @@ async fn distribute_segment<Context>(
 				core_index,
 				stats: per_scheduling_parent.block_number.map(|n| {
 					CollationStats::new(
+						&*clock,
 						para_head,
 						n,
 						scheduling_parent,
 						&state.metrics,
-						*candidate_hash,
+						candidate_hash.0,
 						pov_hash,
 					)
 				}),
@@ -847,9 +916,21 @@ async fn distribute_segment<Context>(
 			},
 		);
 	}
-	per_scheduling_parent
-		.segments
-		.insert(core_index, BoundedVec::try_from(segment_fingerprint).unwrap());
+	// If the segment for this core changed, reset the advertised bits so that validators are
+	// re-advertised the new segment.
+	let new_segment = BoundedVec::try_from(segment_fingerprint).unwrap();
+	let segment_changed = per_scheduling_parent.segments.get(&core_index).map_or(true, |existing| {
+		!existing
+			.iter()
+			.map(|fingerprint| fingerprint.output_head_data_hash)
+			.eq(new_segment.iter().map(|fingerprint| fingerprint.output_head_data_hash))
+	});
+	if segment_changed {
+		if let Some(validator_group) = per_scheduling_parent.validator_group.get_mut(&core_index) {
+			validator_group.segment_advertised_to.fill(false);
+		}
+	}
+	per_scheduling_parent.segments.insert(core_index, new_segment);
 
 	// The leaf should be present in the allowed ancestry of some leaf.
 	//
@@ -882,8 +963,10 @@ async fn distribute_segment<Context>(
 			per_scheduling_parent,
 			peer_id,
 			peer_version,
+			&state.peer_ids,
 			&state.metrics,
-		).await;
+		)
+		.await;
 	}
 	Ok(())
 }
@@ -1230,7 +1313,11 @@ async fn advertise_collation<Context>(
 	}
 }
 
-/// Comment
+/// Advertise the segment for the given `core_index` at `scheduling_parent` to `peer`.
+///
+/// V4 peers receive the whole segment; older peers fall back to an advertisement of the newest
+/// candidate in the segment. A segment is advertised to each validator at most once (until it
+/// changes or the peer reconnects).
 #[overseer::contextbounds(CollatorProtocol, prefix = self::overseer)]
 async fn advertise_segment<Context>(
 	ctx: &mut Context,
@@ -1239,6 +1326,7 @@ async fn advertise_segment<Context>(
 	per_scheduling_parent: &mut PerSchedulingParent,
 	peer: &PeerId,
 	peer_version: CollationVersion,
+	peer_ids: &HashMap<PeerId, HashSet<AuthorityDiscoveryId>>,
 	metrics: &Metrics,
 ) {
 	let Some(core_segment) = per_scheduling_parent.segments.get(&core_index) else {
@@ -1250,7 +1338,7 @@ async fn advertise_segment<Context>(
 		);
 		return;
 	};
-	if per_scheduling_parent.validator_group.get_mut(&core_index).is_none() {
+	let Some(validator_group) = per_scheduling_parent.validator_group.get_mut(&core_index) else {
 		gum::debug!(
 			target: LOG_TARGET,
 			?scheduling_parent,
@@ -1267,6 +1355,31 @@ async fn advertise_segment<Context>(
 			"Skipping advertising to validator, segment is empty.",
 		);
 		return;
+	}
+
+	let should_advertise = validator_group.should_advertise_segment(peer_ids, peer);
+	match should_advertise {
+		ShouldAdvertiseTo::Yes => {},
+		ShouldAdvertiseTo::NotAuthority | ShouldAdvertiseTo::AlreadyAdvertised => {
+			gum::trace!(
+				target: LOG_TARGET,
+				?scheduling_parent,
+				?core_index,
+				peer_id = %peer,
+				reason = ?should_advertise,
+				"Not advertising segment",
+			);
+			return;
+		},
+	}
+
+	// Advance every collation in the segment to the `advertised` status.
+	for fingerprint in core_segment {
+		if let Some(collation_and_core) =
+			per_scheduling_parent.collations.get_mut(&fingerprint.candidate_hash)
+		{
+			collation_and_core.collation_mut().status.advance_to_advertised();
+		}
 	}
 
 	let message = match peer_version {
@@ -1307,6 +1420,7 @@ async fn advertise_segment<Context>(
 	ctx.send_message(NetworkBridgeTxMessage::SendCollationMessage(vec![*peer], message))
 		.await;
 
+	validator_group.segment_advertised_to_peer(peer_ids, peer);
 	metrics.on_advertisement_made();
 }
 
@@ -1770,18 +1884,38 @@ async fn advertise_collations_for_scheduling_parents<Context>(
 
 		for block_hash in block_hashes {
 			if let Some(per_scheduling_parent) = state.per_scheduling_parent.get_mut(block_hash) {
-				advertise_collation(
-					ctx,
-					&*clock,
-					*block_hash,
-					per_scheduling_parent,
-					peer_id,
-					peer_version,
-					&state.peer_ids,
-					&mut state.advertisement_timeouts,
-					&state.metrics,
-				)
-				.await;
+				// Scheduling parents carrying segments advertise them (segments cover all peer
+				// versions); the rest fall back to per-collation advertisement.
+				if per_scheduling_parent.segments.is_empty() {
+					advertise_collation(
+						ctx,
+						&*clock,
+						*block_hash,
+						per_scheduling_parent,
+						peer_id,
+						peer_version,
+						&state.peer_ids,
+						&mut state.advertisement_timeouts,
+						&state.metrics,
+					)
+					.await;
+				} else {
+					let cores: Vec<CoreIndex> =
+						per_scheduling_parent.segments.keys().copied().collect();
+					for core_index in cores {
+						advertise_segment(
+							ctx,
+							*block_hash,
+							core_index,
+							per_scheduling_parent,
+							peer_id,
+							peer_version,
+							&state.peer_ids,
+							&state.metrics,
+						)
+						.await;
+					}
+				}
 			}
 		}
 	}
@@ -1905,6 +2039,7 @@ async fn handle_network_msg<Context>(
 				for per_scheduling_parent in state.per_scheduling_parent.values_mut() {
 					for validator_group in per_scheduling_parent.validator_group.values_mut() {
 						validator_group.reset_advertised_to_peer(authority_ids);
+						validator_group.reset_segment_advertised_to_peer(authority_ids);
 					}
 				}
 			}
@@ -2130,18 +2265,38 @@ async fn handle_our_view_change<Context>(
 					continue;
 				};
 
-				advertise_collation(
-					ctx,
-					&*state.clock,
-					*block_hash,
-					per_relay_parent,
-					peer_id,
-					peer_version,
-					&state.peer_ids,
-					&mut state.advertisement_timeouts,
-					&state.metrics,
-				)
-				.await;
+				// Scheduling parents carrying segments advertise them (segments cover all peer
+				// versions); the rest fall back to per-collation advertisement.
+				if per_relay_parent.segments.is_empty() {
+					advertise_collation(
+						ctx,
+						&*state.clock,
+						*block_hash,
+						per_relay_parent,
+						peer_id,
+						peer_version,
+						&state.peer_ids,
+						&mut state.advertisement_timeouts,
+						&state.metrics,
+					)
+					.await;
+				} else {
+					let cores: Vec<CoreIndex> =
+						per_relay_parent.segments.keys().copied().collect();
+					for core_index in cores {
+						advertise_segment(
+							ctx,
+							*block_hash,
+							core_index,
+							per_relay_parent,
+							peer_id,
+							peer_version,
+							&state.peer_ids,
+							&state.metrics,
+						)
+						.await;
+					}
+				}
 			}
 		}
 	}
