@@ -91,7 +91,7 @@ use futures::{channel::oneshot, future::FutureExt, select};
 use polkadot_node_network_protocol::v4_collation::MAX_SEGMENT_LEN;
 use polkadot_node_primitives::{
 	AvailableData, Collation, CollationGenerationConfig, CollationSecondedSignal, PoV,
-	SubmitCollationParams,
+	SegmentCollation, SubmitCollationParams, SubmitSegmentParams,
 };
 use polkadot_node_subsystem::{
 	messages::{
@@ -208,9 +208,9 @@ impl CollationGenerationSubsystem {
 				false
 			},
 			Ok(FromOrchestra::Communication {
-				msg: CollationGenerationMessage::SubmitCollations(params),
+				msg: CollationGenerationMessage::SubmitSegment(params),
 			}) => {
-				if let Err(err) = self.handle_submit_collations(params, ctx).await {
+				if let Err(err) = self.handle_submit_segment(params, ctx).await {
 					gum::error!(target: LOG_TARGET, ?err, "Failed to submit segment");
 				}
 				false
@@ -288,9 +288,9 @@ impl CollationGenerationSubsystem {
 		Ok(())
 	}
 
-	async fn handle_submit_collations<Context>(
+	async fn handle_submit_segment<Context>(
 		&mut self,
-		params: Vec<SubmitCollationParams>,
+		params: SubmitSegmentParams,
 		ctx: &mut Context,
 	) -> Result<()> {
 		let Some(config) = &self.config else {
@@ -298,19 +298,12 @@ impl CollationGenerationSubsystem {
 		};
 
 		let _timer = self.metrics.time_submit_collation();
-		if params.is_empty() || params.len() > MAX_SEGMENT_LEN as usize {
-			return Err(Error::InvalidSegmentSize(params.len()));
+
+		let SubmitSegmentParams { scheduling_parent, core_index, collations } = params;
+
+		if collations.is_empty() || collations.len() > MAX_SEGMENT_LEN as usize {
+			return Err(Error::InvalidSegmentSize(collations.len()));
 		}
-		// This is okay as all candidates from the segment should have the same scheduling_parent.
-		let scheduling_parent = match params[0].scheduling_parent {
-			Some(scheduling_parent) => scheduling_parent,
-			None => {
-				if params.len() > 1 {
-					return Err(Error::InvalidSchedulingParent);
-				}
-				params[0].relay_parent
-			},
-		};
 
 		let claim_queue = request_claim_queue(scheduling_parent, ctx.sender()).await.await??;
 
@@ -324,17 +317,15 @@ impl CollationGenerationSubsystem {
 
 		let transposed_queue = &transpose_claim_queue(claim_queue);
 		let mut segment_entries = vec![];
-		for submit_param in params {
-			let SubmitCollationParams {
+		for segment_collation in collations {
+			let SegmentCollation {
 				relay_parent,
 				collation,
 				validation_code_hash,
 				result_sender,
-				core_index,
-				scheduling_parent,
 				session_index,
 				validation_data,
-			} = submit_param;
+			} = segment_collation;
 			let collation = PreparedCollation {
 				collation,
 				relay_parent,
@@ -351,7 +342,7 @@ impl CollationGenerationSubsystem {
 				result_sender,
 				&mut self.metrics,
 				transposed_queue,
-				scheduling_parent,
+				Some(scheduling_parent),
 			)?;
 			segment_entries.push(entry);
 		}
@@ -654,7 +645,8 @@ struct PreparedCollation {
 	scheduling_session: SessionIndex,
 }
 
-/// Comment
+/// Takes a prepared collation, along with its context, and produces the candidate receipt and
+/// associated data packaged as a [`SegmentEntry`] ready to be distributed to validators.
 fn construct_receipt(
 	collation: PreparedCollation,
 	result_sender: Option<oneshot::Sender<CollationSecondedSignal>>,

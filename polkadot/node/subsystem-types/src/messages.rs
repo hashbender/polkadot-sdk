@@ -41,7 +41,7 @@ use polkadot_node_primitives::{
 	AvailableData, BabeEpoch, BlockWeight, CandidateVotes, CollationGenerationConfig,
 	CollationSecondedSignal, DisputeMessage, DisputeStatus, ErasureChunk, PoV,
 	SignedDisputeStatement, SignedFullStatement, SignedFullStatementWithPVD, SubmitCollationParams,
-	ValidationResult,
+	SubmitSegmentParams, ValidationResult,
 };
 use polkadot_primitives::{
 	self,
@@ -269,20 +269,22 @@ impl From<PvfExecKind> for RuntimePvfExecKind {
 	}
 }
 
-/// Comment
+/// A single collation within a segment distributed to validators.
 #[derive(Debug)]
 pub struct SegmentEntry {
-	/// Comment
+	/// The receipt of the candidate.
 	pub candidate_receipt: CandidateReceipt,
-	/// Comment
+	/// The hash of the parent head-data.
+	/// Here to avoid computing the hash of the parent head data twice.
 	pub parent_head_data_hash: Hash,
-	/// Comment
+	/// Proof of validity.
 	pub pov: PoV,
-	/// Comment
+	/// This parent head-data is needed for elastic scaling.
 	pub parent_head_data: HeadData,
-	/// Comment
+	/// The result sender should be informed when at least one parachain validator seconded the
+	/// collation. It is also completely okay to just drop the sender.
 	pub result_sender: Option<oneshot::Sender<CollationSecondedSignal>>,
-	/// Comment
+	/// The core index where the candidate should be backed.
 	pub core_index: CoreIndex,
 }
 
@@ -313,9 +315,9 @@ pub enum CollatorProtocolMessage {
 		/// The core index where the candidate should be backed.
 		core_index: CoreIndex,
 	},
-	/// Provide an ordered list of collations to the validators.
+	/// Provide an ordered segment of collations to distribute to validators as a single unit.
 	DistributeSegment {
-		/// Comment
+		/// The collations that make up the segment, in the order they should be advertised.
 		candidates: BoundedVec<SegmentEntry, ConstU32<MAX_SEGMENT_LEN>>,
 	},
 	/// Get a network bridge update.
@@ -1012,12 +1014,13 @@ pub enum CollationGenerationMessage {
 	/// [`CommittedCandidateReceipt`] and distribute along the network to validators.
 	///
 	/// If sent before `Initialize`, this will be ignored.
-	/// We will delete this later, but keep it for now so
-	/// we don't break the build.
 	SubmitCollation(SubmitCollationParams),
-	/// Submit a list of collations to the subsystem. This will package it into
-	/// [`CommittedCandidateReceipt`] and distribute along the network to validators.
-	SubmitCollations(Vec<SubmitCollationParams>),
+	/// Submit a segment of collations that share a scheduling parent and target core. Each
+	/// collation is packaged into a signed [`CommittedCandidateReceipt`] and distributed to
+	/// validators, in the order they appear in [`SubmitSegmentParams::collations`].
+	///
+	/// If sent before `Initialize`, this will be ignored.
+	SubmitSegment(SubmitSegmentParams),
 }
 
 /// The result type of [`ApprovalVotingMessage::ImportAssignment`] request.
