@@ -1090,10 +1090,16 @@ fn has_assigned_cores(
 ) -> bool {
 	let Some(implicit_view) = implicit_view else { return false };
 
+	// Check the whole allowed ancestry, not just the leaves: on non-v3 chains the scheduling
+	// parent is the collation's relay parent, which trails the current leaf.
 	for leaf in implicit_view.leaves() {
-		if let Some(scheduling_parent) = per_scheduling_parent.get(leaf) {
-			if !scheduling_parent.assignments.is_empty() {
-				return true;
+		let allowed_ancestry =
+			implicit_view.known_allowed_relay_parents_under(leaf).unwrap_or_default();
+		for allowed_scheduling_parent in allowed_ancestry {
+			if let Some(scheduling_parent) = per_scheduling_parent.get(allowed_scheduling_parent) {
+				if !scheduling_parent.assignments.is_empty() {
+					return true;
+				}
 			}
 		}
 	}
@@ -1291,9 +1297,22 @@ async fn advertise_collation<Context>(
 				))
 			},
 			CollationVersion::V4 => {
-				// We should not advertise individual collations to V4 peers, they will receive
-				// segments
-				continue;
+				// V4 has no single-collation advertisement; a length-1 segment is its
+				// single-candidate equivalent.
+				let fingerprint = protocol_v4::SegmentFingerprint {
+					candidate_hash: *candidate_hash,
+					output_head_data_hash: collation.receipt.descriptor.para_head(),
+					parent_head_data_hash: collation.parent_head_data.hash(),
+					candidate_descriptor_version,
+					relay_parent: collation.receipt.descriptor.relay_parent(),
+				};
+				CollationProtocols::V4(protocol_v4::CollationProtocol::CollatorProtocol(
+					protocol_v4::CollatorProtocolMessage::AdvertiseSegment {
+						scheduling_parent,
+						candidates: BoundedVec::try_from(vec![fingerprint])
+							.expect("1 <= MAX_SEGMENT_LEN; qed"),
+					},
+				))
 			},
 		};
 
