@@ -340,8 +340,8 @@ impl CollationManager {
 
 		// V3 candidate descriptors require scheduling_parent to be the block from the last
 		// finished relay chain slot.
-		if advertised_descriptor_version == Some(CandidateDescriptorVersion::V3)
-			&& !is_scheduling_parent_valid(
+		if advertised_descriptor_version == Some(CandidateDescriptorVersion::V3) &&
+			!is_scheduling_parent_valid(
 				&*self.clock,
 				&scheduling_parent,
 				&self.leaf_scheduling_info,
@@ -882,8 +882,8 @@ impl CollationManager {
 		// V1 has no candidate hash to dedup by, so at most one V1 fetch may be in-flight or
 		// already fetched per (sp, para). Multiple peers may hold V1 ads for the same
 		// (sp, para); we must filter out *all* V1 ads for that (sp, para) once one is taken.
-		let v1_blocked = per_sp.fetched_collations.iter().any(|info| info.para_id == para_id)
-			|| self.fetching.contains_key(&FetchKey::V1(sp, para_id));
+		let v1_blocked = per_sp.fetched_collations.iter().any(|info| info.para_id == para_id) ||
+			self.fetching.contains_key(&FetchKey::V1(sp, para_id));
 
 		let fetching = &self.fetching;
 		Either::Right(per_sp.all_advertisements().filter(move |(adv, _)| {

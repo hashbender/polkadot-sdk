@@ -919,12 +919,13 @@ async fn distribute_segment<Context>(
 	// If the segment for this core changed, reset the advertised bits so that validators are
 	// re-advertised the new segment.
 	let new_segment = BoundedVec::try_from(segment_fingerprint).unwrap();
-	let segment_changed = per_scheduling_parent.segments.get(&core_index).map_or(true, |existing| {
-		!existing
-			.iter()
-			.map(|fingerprint| fingerprint.output_head_data_hash)
-			.eq(new_segment.iter().map(|fingerprint| fingerprint.output_head_data_hash))
-	});
+	let segment_changed =
+		per_scheduling_parent.segments.get(&core_index).map_or(true, |existing| {
+			!existing
+				.iter()
+				.map(|fingerprint| fingerprint.output_head_data_hash)
+				.eq(new_segment.iter().map(|fingerprint| fingerprint.output_head_data_hash))
+		});
 	if segment_changed {
 		if let Some(validator_group) = per_scheduling_parent.validator_group.get_mut(&core_index) {
 			validator_group.segment_advertised_to.fill(false);
@@ -2300,8 +2301,7 @@ async fn handle_our_view_change<Context>(
 					)
 					.await;
 				} else {
-					let cores: Vec<CoreIndex> =
-						per_relay_parent.segments.keys().copied().collect();
+					let cores: Vec<CoreIndex> = per_relay_parent.segments.keys().copied().collect();
 					for core_index in cores {
 						advertise_segment(
 							ctx,

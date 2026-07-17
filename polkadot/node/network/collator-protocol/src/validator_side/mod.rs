@@ -2373,7 +2373,7 @@ async fn process_msg<Context>(
 				target: LOG_TARGET,
 				"DistributeSegment message is not expected on the validator side of the protocol",
 			);
-		}
+		},
 		NetworkBridgeUpdate(event) => {
 			if let Err(e) = handle_network_msg(ctx, state, keystore, event).await {
 				gum::warn!(
