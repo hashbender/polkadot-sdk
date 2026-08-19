@@ -101,7 +101,7 @@ jobs:
           START_REVIVE_DEV_NODE=true START_ETH_RPC=true deno task ${{ matrix.platform }}
 
   confirm-required-test-evm-jobs-passed:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     name: All test misc tests passed
     # If any new job gets added, be sure to add it to this array
     needs:

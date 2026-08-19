@@ -107,7 +107,7 @@ jobs:
   # name of this job must be unique across all workflows
   # otherwise GitHub will mark all these jobs as required
   confirm-runtime-compatibility-checks-passed:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     name: All runtime compatibility checks passed
     needs: [check-runtime-compatibility]
     if: always() && !cancelled()

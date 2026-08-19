@@ -107,7 +107,7 @@ jobs:
           app-key: ${{ secrets.WORKFLOW_STOPPER_RUNNER_APP_KEY }}
 
   confirm-required-build-misc-jobs-passed:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     name: All build misc jobs passed
     # If any new job gets added, be sure to add it to this array
     needs: [build-runtimes-polkavm, build-subkey]

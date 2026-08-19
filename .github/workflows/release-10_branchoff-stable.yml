@@ -26,7 +26,7 @@ on:
 
 jobs:
   validate-inputs:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     outputs:
       node_version: ${{ steps.validate_inputs.outputs.node_version }}
       stable_version: ${{ steps.validate_inputs.outputs.stable_version }}
@@ -54,7 +54,7 @@ jobs:
   create-stable-branch:
     if: ${{ inputs.is_new_stable }}
     needs: [ validate-inputs ]
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     environment: release
     env:
       PGP_KMS_KEY: ${{ secrets.PGP_KMS_SIGN_COMMITS_KEY }}

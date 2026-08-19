@@ -65,7 +65,7 @@ jobs:
   set-image:
     needs: [ check-synchronization ]
     if: ${{ needs.check-synchronization.outputs.checks_passed == 'true' }}
-    runs-on: ubuntu-latest-m
+    runs-on: tenki-standard-medium-4c-8g
     outputs:
       IMAGE: ${{ steps.set_image.outputs.IMAGE }}
     steps:
@@ -77,7 +77,7 @@ jobs:
 
   publish-crates:
     needs: set-image
-    runs-on: ubuntu-latest-m
+    runs-on: tenki-standard-medium-4c-8g
     environment: release
     env:
       PGP_KMS_KEY: ${{ secrets.PGP_KMS_SIGN_COMMITS_KEY }}

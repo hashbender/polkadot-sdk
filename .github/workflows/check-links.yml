@@ -21,7 +21,7 @@ jobs:
   isdraft:
     uses: ./.github/workflows/reusable-isdraft.yml
   link-checker:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: isdraft
     timeout-minutes: 10
     steps:

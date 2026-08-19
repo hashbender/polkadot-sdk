@@ -12,7 +12,7 @@ permissions:
 jobs:
   update-wishlist-leaderboard:
     if: github.repository == 'paritytech/polkadot-sdk'
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Set up Python

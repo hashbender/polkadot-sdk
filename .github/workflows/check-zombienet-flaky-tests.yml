@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   check-flaky-tests:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     timeout-minutes: 5
     steps:
       - name: Checkout repo
@@ -27,6 +27,7 @@ jobs:
       - name: Validate zombienet-flaky-tests
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: paritytech/polkadot-sdk
         run: |
           .github/scripts/check-zombienet-flaky-tests.sh .github/zombienet-flaky-tests
 

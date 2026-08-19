@@ -13,7 +13,7 @@ permissions: # allow the action to comment in PR
 jobs:
   is-org-member:
     if: startsWith(github.event.comment.body, '/cmd')
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     outputs:
       member: ${{ steps.is-member.outputs.result }}
     steps:
@@ -57,7 +57,7 @@ jobs:
 
   acknowledge:
     if: ${{ startsWith(github.event.comment.body, '/cmd') }}
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     steps:
       - name: Add reaction to triggered comment
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -72,7 +72,7 @@ jobs:
             })
 
   clean:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     steps:
       - name: Clean previous comments
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -111,7 +111,7 @@ jobs:
 
   get-pr-info:
     if: ${{ startsWith(github.event.comment.body, '/cmd') }}
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     outputs:
       CMD: ${{ steps.get-comment.outputs.group2 }}
       pr-branch: ${{ steps.get-pr.outputs.pr_branch }}
@@ -165,7 +165,7 @@ jobs:
   help:
     needs: [clean, get-pr-info]
     if: ${{ startsWith(github.event.comment.body, '/cmd') && contains(github.event.comment.body, '--help') }}
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -227,7 +227,7 @@ jobs:
   set-image:
     needs: [clean, get-pr-info]
     if: ${{ startsWith(github.event.comment.body, '/cmd') && !contains(github.event.comment.body, '--help') }}
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     env:
       CMD: ${{ needs.get-pr-info.outputs.CMD }}
     outputs:
@@ -250,9 +250,9 @@ jobs:
           fi
 
           if [[ $BODY == "bench"* ]]; then
-              echo "RUNNER=parity-weights" >> $GITHUB_OUTPUT
+              echo "RUNNER=tenki-standard-large-plus-16c-32g" >> $GITHUB_OUTPUT
           elif [[ $BODY == "update-ui"* ]]; then
-              echo "RUNNER=parity-large" >> $GITHUB_OUTPUT
+              echo "RUNNER=tenki-standard-large-plus-16c-32g" >> $GITHUB_OUTPUT
           else
               echo "RUNNER=ubuntu-latest" >> $GITHUB_OUTPUT
           fi
@@ -262,7 +262,7 @@ jobs:
           echo "IMAGE=${{ steps.set-image.outputs.IMAGE }}"
 
   check-pr-author:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     outputs:
       is_author: ${{ steps.check-author.outputs.result }}
     steps:
@@ -299,7 +299,7 @@ jobs:
 
   run-cmd-workflow:
     needs: [set-image, get-pr-info, is-org-member, check-pr-author]
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     # don't run on help command
     if: ${{ startsWith(github.event.comment.body, '/cmd') && !contains(github.event.comment.body, '--help') }}
     permissions: # run workflow

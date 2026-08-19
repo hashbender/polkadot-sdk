@@ -32,7 +32,7 @@ on:
 
 jobs:
   prepare-chain-spec-artifacts:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     strategy:
       matrix:
         include:
@@ -87,7 +87,7 @@ jobs:
 
   sync-templates:
     needs: prepare-chain-spec-artifacts
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     environment: master
     strategy:
       fail-fast: false

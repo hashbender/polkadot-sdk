@@ -10,7 +10,7 @@ on:
 jobs:
   add-parachain-issues:
     if: github.event.label.name == 'T16-async_backing'
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     steps:
       - name: Generate token
         id: generate_token

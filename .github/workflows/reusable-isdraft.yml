@@ -8,7 +8,7 @@ on:
 
 jobs:
   isdraft:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     if: github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'A5-run-CI')
     steps:
       - name: echo test

@@ -20,7 +20,7 @@ env:
 
 jobs:
   check-prdoc:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     timeout-minutes: 10
     steps:
       - name: Checkout repo

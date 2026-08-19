@@ -34,7 +34,7 @@ jobs:
   validate-inputs:
     needs: [check-synchronization]
     if: needs.check-synchronization.outputs.checks_passed == 'true'
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     outputs:
         release_tag: ${{ steps.validate_inputs.outputs.release_tag }}
     steps:
@@ -58,7 +58,7 @@ jobs:
           echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
 
   fetch-artifacts-from-s3:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: [validate-inputs]
     environment: release
     env:
@@ -96,7 +96,7 @@ jobs:
           path: release-artifacts/polkadot/*.${{ inputs.package_type }}
 
   publish-package:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: [fetch-artifacts-from-s3]
     environment: release
     env:

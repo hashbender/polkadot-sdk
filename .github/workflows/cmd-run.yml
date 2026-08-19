@@ -43,7 +43,7 @@ permissions: # allow the action to comment on the PR
 
 jobs:
   before-cmd:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     env:
       JOB_NAME: "cmd"
       CMD: ${{ github.event.inputs.cmd }}
@@ -315,7 +315,7 @@ jobs:
       PR_BRANCH: ${{ github.event.inputs.pr_branch }}
       PR_NUM: ${{ github.event.inputs.pr_num }}
       REPO: ${{ github.event.inputs.repo }}
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     steps:
       # needs to be able to trigger CI, as default token does not retrigger
       - uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
@@ -498,7 +498,7 @@ jobs:
   finish:
     needs: [before-cmd, cmd, after-cmd]
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     env:
       CMD_OUTPUT: "${{ needs.cmd.outputs.cmd_output }}"
       CMD: ${{ github.event.inputs.cmd }}

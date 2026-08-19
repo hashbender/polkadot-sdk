@@ -63,7 +63,7 @@ jobs:
             container: opensuse/tumbleweed
             template: solochain
             shell: sh
-    runs-on: parity-large
+    runs-on: tenki-standard-large-plus-16c-32g
     container: ${{ matrix.container }}:latest
     steps:
       # A minimal amount of prerequisites required before we can run the actual getting-started script,
@@ -191,7 +191,7 @@ jobs:
             shell: sh
           - template: solochain
             shell: bash
-    runs-on: macos-latest
+    runs-on: tenki-standard-medium-4c-8g
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

@@ -706,7 +706,7 @@ jobs:
           password: ${{ secrets.PARITYPR_DOCKERHUB_PASSWORD }}
 
   confirm-required-build-jobs-passed:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     name: All builds passed
     # If any new job gets added, be sure to add it to this array
     needs:
@@ -784,7 +784,7 @@ jobs:
       ARTIFACTS_DOWNLOADER_PRIVATE_KEY: ${{ secrets.ARTIFACTS_DOWNLOADER_PRIVATE_KEY }}
 
   confirm-zombienet-tests-passed:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     name: All zombienet tests passed
     needs:
       # Disabled until zombienet polkadot/cumulus flows are stable

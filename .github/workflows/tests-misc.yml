@@ -163,7 +163,7 @@ jobs:
   node-bench-regression-guard:
     timeout-minutes: 20
     if: always() && !cancelled()
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: [preflight, cargo-check-benches]
     steps:
       - name: Checkout
@@ -349,7 +349,7 @@ jobs:
     timeout-minutes: 30
     needs: [preflight]
     runs-on: ${{ needs.preflight.outputs.RUNNER_MACOS }}
-    if: ${{ needs.preflight.outputs.changes_rust }}
+    if: ${{ github.repository == 'paritytech/polkadot-sdk' && needs.preflight.outputs.changes_rust }}
     env:
       SKIP_WASM_BUILD: 1
     steps:
@@ -398,7 +398,7 @@ jobs:
           cargo check --workspace --locked
 
   confirm-required-test-misc-jobs-passed:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     name: All test misc tests passed
     # If any new job gets added, be sure to add it to this array
     needs:

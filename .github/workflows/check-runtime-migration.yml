@@ -29,7 +29,7 @@ jobs:
   # For scheduled runs: always create fresh snapshots.
   # For PRs: use cached snapshots if available, create if not.
   prepare-snapshots:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: [preflight]
     # Disabled on the unstable2604 backport branch: the migration check runs against
     # live Westend state (which tracks master) and does not apply here.
@@ -201,7 +201,7 @@ jobs:
   # name of this job must be unique across all workflows
   # otherwise GitHub will mark all these jobs as required
   confirm-required-checks-passed:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     name: All runtime migrations passed
     # If any new job gets added, be sure to add it to this array
     needs: [check-runtime-migration]

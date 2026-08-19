@@ -31,7 +31,7 @@ jobs:
   isdraft:
     uses: ./.github/workflows/reusable-isdraft.yml
   sync:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: isdraft
     steps:
       - name: Do nothing

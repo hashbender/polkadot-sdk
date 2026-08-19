@@ -29,7 +29,7 @@ permissions:
 jobs:
   set-image:
     if: ${{ github.event.inputs.version != '' && contains(fromJSON('["nprt", "ArshamTeymouri", "EgorPopelyaev", "alvicsam", "AndWeHaveAPlan", "eduardspa", "BDevParity"]'), github.actor) }}
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     outputs:
       IMAGE: ${{ steps.set_image.outputs.IMAGE }}
     steps:
@@ -41,7 +41,7 @@ jobs:
 
   post-crates-activities:
     needs: set-image
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     environment: release
     env:
       PGP_KMS_KEY: ${{ secrets.PGP_KMS_SIGN_COMMITS_KEY }}
