@@ -41,7 +41,7 @@ jobs:
     # GitHub Actions allows using 'env' in a container context.
     # However, env variables don't work for forks: https://github.com/orgs/community/discussions/44322
     # This workaround sets the container image for each job using 'set-image' job output.
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     outputs:
       IMAGE: ${{ steps.set_image.outputs.IMAGE }}
     steps:
@@ -55,7 +55,7 @@ jobs:
   build-rc:
     if: ${{ inputs.target == 'x86_64-unknown-linux-gnu' }}
     needs: [set-image]
-    runs-on: ubuntu-latest-m
+    runs-on: tenki-standard-medium-4c-8g
     environment: release
     container:
       image: ${{ needs.set-image.outputs.IMAGE }}
@@ -293,7 +293,7 @@ jobs:
   build-polkadot-deb-and-rpm-package:
     if: ${{ inputs.package == 'polkadot' && inputs.target == 'x86_64-unknown-linux-gnu' }}
     needs: [build-rc]
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
 
     steps:
     - name: Checkout sources

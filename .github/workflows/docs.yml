@@ -27,7 +27,7 @@ jobs:
       image: ${{ needs.preflight.outputs.IMAGE }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - run: forklift cargo test --doc --workspace --locked
+      - run: cargo test --doc --workspace --locked
         id: required
         env:
           RUSTFLAGS: "-Cdebug-assertions=y -Dwarnings"
@@ -47,7 +47,7 @@ jobs:
       image: ${{ needs.preflight.outputs.IMAGE }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - run: forklift cargo doc --all-features --workspace --no-deps --locked
+      - run: cargo doc --all-features --workspace --no-deps --locked
         id: required
         env:
           SKIP_WASM_BUILD: 1
@@ -79,7 +79,7 @@ jobs:
           app-key: ${{ secrets.WORKFLOW_STOPPER_RUNNER_APP_KEY }}
 
   build-implementers-guide:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: isdraft
     container:
       image: paritytech/mdbook-utils:e14aae4a-20221123
@@ -97,7 +97,7 @@ jobs:
           if-no-files-found: error
 
   confirm-required-jobs-passed:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     name: All docs jobs passed
     # If any new job gets added, be sure to add it to this array
     needs: [test-doc, build-rustdoc, build-implementers-guide]
@@ -115,7 +115,7 @@ jobs:
 
   publish-rustdoc:
     if: github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     environment: subsystem-benchmarks
     needs: [build-rustdoc, build-implementers-guide]
     steps:

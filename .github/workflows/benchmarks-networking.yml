@@ -38,7 +38,7 @@ jobs:
         id: run-benchmarks
         run: |
           mkdir -p ./charts
-          forklift cargo bench -p sc-network --bench ${{ matrix.features.bench }} -- --output-format bencher | grep "^test" | tee ./charts/${{ matrix.features.bench }}.txt || echo "Benchmarks failed"
+          cargo bench -p sc-network --bench ${{ matrix.features.bench }} -- --output-format bencher | grep "^test" | tee ./charts/${{ matrix.features.bench }}.txt || echo "Benchmarks failed"
           ls -lsa ./charts
 
       - name: Upload artifacts
@@ -52,7 +52,7 @@ jobs:
     needs: [build]
     if: github.ref == 'refs/heads/master'
     environment: subsystem-benchmarks
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

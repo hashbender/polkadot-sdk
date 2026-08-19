@@ -156,7 +156,7 @@ jobs:
   #
   #
   preflight:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     if: github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch' || ! contains(github.event.pull_request.labels.*.name, 'T19-skip-zombienet_tests')
 
     outputs:
@@ -310,26 +310,26 @@ jobs:
               echo "ZOMBIENET_IMAGE=${ZOMBIENET_IMAGE_FOR_NATIVE}"
               DEFAULT_RUNNER_VAR="ZOMBIENET_DEFAULT_RUNNER_FOR_NATIVE${RUNNER_SUFFIX}"
               LARGE_RUNNER_VAR="ZOMBIENET_LARGE_RUNNER_FOR_NATIVE${RUNNER_SUFFIX}"
-              echo "ZOMBIENET_DEFAULT_RUNNER=${!DEFAULT_RUNNER_VAR}"
-              echo "ZOMBIENET_LARGE_RUNNER=${!LARGE_RUNNER_VAR}"
+              echo "ZOMBIENET_DEFAULT_RUNNER=tenki-standard-medium-4c-8g"
+              echo "ZOMBIENET_LARGE_RUNNER=tenki-standard-large-plus-16c-32g"
             else
               echo "ZOMBIENET_IMAGE=${ZOMBIENET_IMAGE_FOR_K8S}"
               # runner size for k8s is not relevant, it "only" spawns pods and runs the test
-              echo "ZOMBIENET_DEFAULT_RUNNER=${ZOMBIENET_RUNNER_FOR_K8S}"
-              echo "ZOMBIENET_LARGE_RUNNER=${ZOMBIENET_RUNNER_FOR_K8S}"
+              echo "ZOMBIENET_DEFAULT_RUNNER=tenki-standard-medium-4c-8g"
+              echo "ZOMBIENET_LARGE_RUNNER=tenki-standard-large-plus-16c-32g"
             fi
 
             if [[ "$ZOMBIE_PROVIDER" == "native" ]]; then
               echo "ZOMBIENET_SDK_IMAGE=${ZOMBIENET_SDK_IMAGE_FOR_NATIVE}"
               SDK_DEFAULT_RUNNER_VAR="ZOMBIENET_SDK_DEFAULT_RUNNER_FOR_NATIVE${RUNNER_SUFFIX}"
               SDK_LARGE_RUNNER_VAR="ZOMBIENET_SDK_LARGE_RUNNER_FOR_NATIVE${RUNNER_SUFFIX}"
-              echo "ZOMBIENET_SDK_DEFAULT_RUNNER=${!SDK_DEFAULT_RUNNER_VAR}"
-              echo "ZOMBIENET_SDK_LARGE_RUNNER=${!SDK_LARGE_RUNNER_VAR}"
+              echo "ZOMBIENET_SDK_DEFAULT_RUNNER=tenki-standard-medium-4c-8g"
+              echo "ZOMBIENET_SDK_LARGE_RUNNER=tenki-standard-large-plus-16c-32g"
             else
               echo "ZOMBIENET_SDK_IMAGE=${ZOMBIENET_SDK_IMAGE_FOR_K8S}"
               # runner size for k8s is not relevant, it "only" spawns pods and runs the test
-              echo "ZOMBIENET_SDK_DEFAULT_RUNNER=${ZOMBIENET_SDK_RUNNER_FOR_K8S}"
-              echo "ZOMBIENET_SDK_LARGE_RUNNER=${ZOMBIENET_SDK_RUNNER_FOR_K8S}"
+              echo "ZOMBIENET_SDK_DEFAULT_RUNNER=tenki-standard-medium-4c-8g"
+              echo "ZOMBIENET_SDK_LARGE_RUNNER=tenki-standard-large-plus-16c-32g"
             fi
 
             # Trick for multline strings: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/workflow-commands-for-github-actions#example-of-a-multiline-string

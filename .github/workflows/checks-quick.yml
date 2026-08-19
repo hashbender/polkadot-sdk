@@ -22,7 +22,7 @@ jobs:
     uses: ./.github/workflows/reusable-preflight.yml
 
   fmt:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     timeout-minutes: 20
     needs: [preflight]
     container:
@@ -39,7 +39,7 @@ jobs:
           app-id: ${{ secrets.WORKFLOW_STOPPER_RUNNER_APP_ID }}
           app-key: ${{ secrets.WORKFLOW_STOPPER_RUNNER_APP_KEY }}
   check-dependency-rules:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: isdraft
     timeout-minutes: 20
     steps:
@@ -49,7 +49,7 @@ jobs:
           cd substrate/
           ../.gitlab/ensure-deps.sh
   check-workspace-inheritance:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: isdraft
     timeout-minutes: 20
     steps:
@@ -60,7 +60,7 @@ jobs:
           promotion-failure: true
           promotion-threshold: 1
   check-zepter:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     timeout-minutes: 20
     needs: [preflight]
     container:
@@ -79,7 +79,7 @@ jobs:
           zepter --version
           time zepter run check
   test-rust-features:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     timeout-minutes: 20
     needs: [preflight]
     container:
@@ -89,7 +89,7 @@ jobs:
       - name: run rust features
         run: bash .gitlab/rust-features.sh .
   check-toml-format:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     timeout-minutes: 20
     needs: [preflight]
     container:
@@ -101,7 +101,7 @@ jobs:
           taplo format --check --config .config/taplo.toml
           echo "Please run `taplo format --config .config/taplo.toml` to fix any toml formatting issues"
   check-workspace:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: isdraft
     timeout-minutes: 20
     steps:
@@ -119,7 +119,7 @@ jobs:
       - name: deny git deps
         run: python3 .github/scripts/deny-git-deps.py .
   check-markdown:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: isdraft
     timeout-minutes: 20
     steps:
@@ -143,7 +143,7 @@ jobs:
           echo "To fix potential erros, you can run 'markdownlint --config .github/.markdownlint.yaml -f --ignore target .' locally."
           markdownlint --config "$CONFIG" --ignore target .
   check-umbrella:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     timeout-minutes: 20
     needs: [preflight]
     container:
@@ -193,7 +193,7 @@ jobs:
             exit 1
           fi
   check-fail-ci:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: isdraft
     container:
       # there's no "rg" in ci-unified, and tools is a smaller image anyway
@@ -219,7 +219,7 @@ jobs:
           ASSERT_REGEX: "FAIL-CI"
           GIT_DEPTH: 1
   check-invisible-chars:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: isdraft
     timeout-minutes: 10
     steps:
@@ -274,7 +274,7 @@ jobs:
             exit 0
           fi
   check-readme:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: isdraft
     timeout-minutes: 10
     steps:
@@ -302,7 +302,7 @@ jobs:
         run: .github/scripts/check-missing-readme-generation.sh
 
   confirm-required-checks-quick-jobs-passed:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     name: All quick checks passed
     # If any new job gets added, be sure to add it to this array
     needs:

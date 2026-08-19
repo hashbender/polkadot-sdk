@@ -33,7 +33,7 @@ jobs:
     # GitHub Actions allows using 'env' in a container context.
     # However, env variables don't work for forks: https://github.com/orgs/community/discussions/44322
     # This workaround sets the container image for each job using 'set-image' job output.
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     outputs:
       IMAGE: ${{ steps.set_image.outputs.IMAGE }}
       RUNNER: ${{ steps.set_runner.outputs.RUNNER }}
@@ -52,7 +52,7 @@ jobs:
           INPUT_BINARY: ${{ inputs.binary }}
         run: |
           if [[ "$INPUT_BINARY" == "polkadot-parachain" || "$INPUT_BINARY" == "eth-rpc" ]]; then
-            echo "RUNNER=parity-large" >> $GITHUB_OUTPUT
+            echo "RUNNER=tenki-standard-large-plus-16c-32g" >> $GITHUB_OUTPUT
           else
             echo "RUNNER=ubuntu-latest" >> $GITHUB_OUTPUT
           fi
@@ -99,7 +99,7 @@ jobs:
   build-docker-image:
     needs: [build-binary]
     if: inputs.binary != 'eth-rpc'
-    runs-on: parity-default
+    runs-on: tenki-standard-medium-4c-8g
     timeout-minutes: 60
     steps:
       - name: Checkout

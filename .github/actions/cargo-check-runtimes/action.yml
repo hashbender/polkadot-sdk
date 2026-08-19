@@ -17,6 +17,6 @@ runs:
           echo "_____Running cargo check for ${directory} ______";
           cd ${directory};
           pwd;
-          SKIP_WASM_BUILD=1 forklift cargo check --locked;
+          SKIP_WASM_BUILD=1 cargo check --locked;
           cd ..;
         done

@@ -65,7 +65,7 @@ jobs:
       - name: Run Benchmarks
         id: run-benchmarks
         run: |
-          forklift cargo bench -p ${{ matrix.features.name }} --bench ${{ matrix.features.bench }} --features subsystem-benchmarks || echo "error"
+          cargo bench -p ${{ matrix.features.name }} --bench ${{ matrix.features.bench }} --features subsystem-benchmarks || echo "error"
           # fails if file not found
           ls -lsa ./charts | grep json
 
@@ -80,7 +80,7 @@ jobs:
     needs: [build]
     if: github.ref == 'refs/heads/master'
     environment: subsystem-benchmarks
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

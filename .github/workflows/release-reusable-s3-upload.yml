@@ -20,7 +20,7 @@ on:
 
 jobs:
   upload-artifacts-to-s3:
-      runs-on: ubuntu-latest
+      runs-on: tenki-standard-medium-4c-8g
       environment: release
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_RELEASE_ACCESS_KEY_ID }}

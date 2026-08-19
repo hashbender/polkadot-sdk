@@ -41,8 +41,8 @@ jobs:
       - name: script
         id: required
         run: |
-          forklift cargo build --locked --quiet --release -p asset-hub-westend-runtime --features runtime-benchmarks
-          forklift cargo run --locked --release -p frame-omni-bencher --quiet -- v1 benchmark pallet --runtime target/release/wbuild/asset-hub-westend-runtime/asset_hub_westend_runtime.compact.compressed.wasm --all --steps 2 --repeat 1 --quiet --min-duration 0
+          cargo build --locked --quiet --release -p asset-hub-westend-runtime --features runtime-benchmarks
+          cargo run --locked --release -p frame-omni-bencher --quiet -- v1 benchmark pallet --runtime target/release/wbuild/asset-hub-westend-runtime/asset_hub_westend_runtime.compact.compressed.wasm --all --steps 2 --repeat 1 --quiet --min-duration 0
       - name: Stop all workflows if failed
         if: ${{ failure() && steps.required.conclusion == 'failure' && !github.event.pull_request.head.repo.fork }}
         uses: ./.github/actions/workflow-stopper
@@ -51,7 +51,7 @@ jobs:
           app-key: ${{ secrets.WORKFLOW_STOPPER_RUNNER_APP_KEY }}
 
   runtime-matrix:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: [preflight]
     if: ${{ needs.preflight.outputs.changes_rust }}
     timeout-minutes: 60
@@ -97,7 +97,7 @@ jobs:
           RUNTIME_BLOB_NAME=$(echo $PACKAGE_NAME | sed 's/-/_/g').compact.compressed.wasm
           RUNTIME_BLOB_PATH=./target/release/wbuild/$PACKAGE_NAME/$RUNTIME_BLOB_NAME
           BENCH_CMD=${{ matrix.bench_cmd }}
-          forklift cargo build --release --locked -p $PACKAGE_NAME -p frame-omni-bencher --features=${{ matrix.runtime.bench_features }} --quiet
+          cargo build --release --locked -p $PACKAGE_NAME -p frame-omni-bencher --features=${{ matrix.runtime.bench_features }} --quiet
           echo "Running short $BENCH_CMD benchmarking for PACKAGE_NAME=$PACKAGE_NAME and RUNTIME_BLOB_PATH=$RUNTIME_BLOB_PATH"
           ls -lrt $RUNTIME_BLOB_PATH
 
@@ -120,7 +120,7 @@ jobs:
           app-key: ${{ secrets.WORKFLOW_STOPPER_RUNNER_APP_KEY }}
 
   confirm-frame-omni-benchers-passed:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     name: All benchmarks passed
     needs: [quick-benchmarks-omni, run-frame-omni-bencher]
     if: always() && !cancelled()

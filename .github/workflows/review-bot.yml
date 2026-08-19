@@ -14,7 +14,7 @@ on:
 
 jobs:
   review-approvals:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     steps:
       - name: Generate token
         id: app_token

@@ -11,6 +11,7 @@ runs:
   using: "composite"
   steps:
     - name: Worfklow stopper - Generate token
+      if: ${{ github.repository == 'paritytech/polkadot-sdk' }}
       uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
       id: app-token
       with:
@@ -19,6 +20,7 @@ runs:
         owner: "paritytech"
         repositories: "workflow-stopper"
     - name: Workflow stopper - Stop all workflows
+      if: ${{ github.repository == 'paritytech/polkadot-sdk' }}
       uses: octokit/request-action@v2.x
       with:
         route: POST /repos/paritytech/workflow-stopper/actions/workflows/stopper.yml/dispatches

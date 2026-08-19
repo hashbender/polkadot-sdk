@@ -29,7 +29,7 @@ jobs:
   # For scheduled runs: always create fresh snapshots.
   # For PRs: use cached snapshots if available, create if not.
   prepare-snapshots:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: [preflight]
     if: ${{ needs.preflight.outputs.changes_rust }}
     strategy:
@@ -173,7 +173,7 @@ jobs:
         id: required1
         run: |
           echo "---------- Building ${{ matrix.package }} runtime ----------"
-          forklift cargo build --release --locked -p ${{ matrix.package }} --features try-runtime -q
+          cargo build --release --locked -p ${{ matrix.package }} --features try-runtime -q
 
       - name: Run Check
         id: required2
@@ -197,7 +197,7 @@ jobs:
   # name of this job must be unique across all workflows
   # otherwise GitHub will mark all these jobs as required
   confirm-required-checks-passed:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     name: All runtime migrations passed
     # If any new job gets added, be sure to add it to this array
     needs: [check-runtime-migration]

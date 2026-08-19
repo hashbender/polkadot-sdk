@@ -45,7 +45,7 @@ jobs:
 
   cmd-prdoc:
     needs: [preflight]
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     timeout-minutes: 20
     container:
       image: ${{ needs.preflight.outputs.IMAGE }}

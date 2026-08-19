@@ -111,7 +111,7 @@ jobs:
   validate-inputs:
     needs: [check-synchronization]
     if: needs.check-synchronization.outputs.checks_passed == 'true'
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     outputs:
       version: ${{ steps.validate_inputs.outputs.VERSION }}
       stable_tag: ${{ steps.validate_inputs.outputs.stable_tag }}
@@ -135,7 +135,7 @@ jobs:
           echo "stable_tag=${STABLE_TAG}" >> $GITHUB_OUTPUT
 
   fetch-artifacts: # this job will be triggered for the polkadot-parachain rc and release or polkadot rc image build
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: [ validate-inputs ]
 
     steps:
@@ -167,7 +167,7 @@ jobs:
           path: release-artifacts/x86_64-unknown-linux-gnu/${{ env.BINARY }}/**/*
 
   build-container: # this job will be triggered for the polkadot-parachain rc and release or polkadot rc image build
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: [ fetch-artifacts, validate-inputs ]
     environment: release
 

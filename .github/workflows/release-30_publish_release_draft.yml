@@ -66,7 +66,7 @@ jobs:
   validate-inputs:
     needs: [ check-synchronization ]
     if: needs.check-synchronization.outputs.checks_passed == 'true'
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     outputs:
         release_tag: ${{ steps.validate_inputs.outputs.release_tag }}
 
@@ -86,7 +86,7 @@ jobs:
 
 
   publish-release-draft:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     environment: release
     needs: [ validate-inputs ]
     outputs:
@@ -207,7 +207,7 @@ jobs:
     needs: [ validate-inputs, publish-release-draft ]
     environment: release
     continue-on-error: true
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     strategy:
       matrix: ${{ fromJSON(inputs.runtimes) }}
 
@@ -263,7 +263,7 @@ jobs:
     needs: [ validate-inputs, publish-release-draft ]
     environment: release
     continue-on-error: true
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     strategy:
       matrix:
         binary: [ polkadot, polkadot-execute-worker, polkadot-prepare-worker, polkadot-parachain, polkadot-omni-node, frame-omni-bencher, chain-spec-builder, eth-rpc ]
@@ -329,7 +329,7 @@ jobs:
           fi
 
   post_to_matrix:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: [ validate-inputs, publish-release-draft ]
     environment: release
     strategy:

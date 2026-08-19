@@ -41,9 +41,9 @@ jobs:
       - name: script
         run: |
           cd substrate/primitives/core/
-          forklift cargo build --locked --no-default-features --features full_crypto
+          cargo build --locked --no-default-features --features full_crypto
           cd ../application-crypto
-          forklift cargo build --locked --no-default-features --features full_crypto
+          cargo build --locked --no-default-features --features full_crypto
 
   test-frame-examples-compile-to-wasm:
     timeout-minutes: 20
@@ -64,9 +64,9 @@ jobs:
       - name: script
         run: |
           cd substrate/frame/examples/offchain-worker/
-          RUSTFLAGS="--cfg substrate_runtime" forklift cargo build --locked --target=wasm32-unknown-unknown --no-default-features
+          RUSTFLAGS="--cfg substrate_runtime" cargo build --locked --target=wasm32-unknown-unknown --no-default-features
           cd ../basic
-          RUSTFLAGS="--cfg substrate_runtime" forklift cargo build --locked --target=wasm32-unknown-unknown --no-default-features
+          RUSTFLAGS="--cfg substrate_runtime" cargo build --locked --target=wasm32-unknown-unknown --no-default-features
 
   test-frame-ui:
     timeout-minutes: 60
@@ -89,13 +89,13 @@ jobs:
       - name: script
         run: |
           cargo version
-          forklift cargo test --locked -q --profile testnet -p frame-support-test --features=frame-feature-testing,no-metadata-docs,try-runtime,experimental ui
-          forklift cargo test --locked -q --profile testnet -p frame-support-test --features=frame-feature-testing,frame-feature-testing-2,no-metadata-docs,try-runtime,experimental ui
-          forklift cargo test --locked -q --profile testnet -p xcm-procedural ui
-          forklift cargo test --locked -q --profile testnet -p frame-election-provider-solution-type ui
-          forklift cargo test --locked -q --profile testnet -p sp-api-test ui
+          cargo test --locked -q --profile testnet -p frame-support-test --features=frame-feature-testing,no-metadata-docs,try-runtime,experimental ui
+          cargo test --locked -q --profile testnet -p frame-support-test --features=frame-feature-testing,frame-feature-testing-2,no-metadata-docs,try-runtime,experimental ui
+          cargo test --locked -q --profile testnet -p xcm-procedural ui
+          cargo test --locked -q --profile testnet -p frame-election-provider-solution-type ui
+          cargo test --locked -q --profile testnet -p sp-api-test ui
           # There is multiple version of sp-runtime-interface in the repo. So we point to the manifest.
-          forklift cargo test --locked -q --profile testnet --manifest-path substrate/primitives/runtime-interface/Cargo.toml ui
+          cargo test --locked -q --profile testnet --manifest-path substrate/primitives/runtime-interface/Cargo.toml ui
 
   test-deterministic-wasm:
     timeout-minutes: 30
@@ -112,12 +112,12 @@ jobs:
       - name: script
         run: |
           # build runtime
-          forklift cargo build -q --locked --release -p westend-runtime
+          cargo build -q --locked --release -p westend-runtime
           # make checksum
           sha256sum target/release/wbuild/*-runtime/target/wasm32-unknown-unknown/release/*.wasm > checksum.sha256
           cargo clean
           # build again
-          forklift cargo build -q --locked --release -p westend-runtime
+          cargo build -q --locked --release -p westend-runtime
           # confirm checksum
           sha256sum -c checksum.sha256
 
@@ -149,9 +149,9 @@ jobs:
           BENCH_NODE_IMPORT=::node::import::sr25519::transfer_keep_alive::paritydb::small
           mkdir -p $ARTIFACTS_DIR
 
-          SKIP_WASM_BUILD=1 forklift cargo check --locked --benches --all;
-          forklift cargo run --locked --release -p node-bench -- $BENCH_TRIE_READ --json | tee $ARTIFACTS_DIR/bench_trie_read_small.json;
-          forklift cargo run --locked --release -p node-bench -- $BENCH_NODE_IMPORT --json | tee $ARTIFACTS_DIR/bench_transfer_keep_alive.json
+          SKIP_WASM_BUILD=1 cargo check --locked --benches --all;
+          cargo run --locked --release -p node-bench -- $BENCH_TRIE_READ --json | tee $ARTIFACTS_DIR/bench_trie_read_small.json;
+          cargo run --locked --release -p node-bench -- $BENCH_NODE_IMPORT --json | tee $ARTIFACTS_DIR/bench_transfer_keep_alive.json
 
       - name: Upload artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -163,7 +163,7 @@ jobs:
   node-bench-regression-guard:
     timeout-minutes: 20
     if: ${{ needs.preflight.outputs.changes_rust }}
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs: [preflight, cargo-check-benches]
     steps:
       - name: Checkout
@@ -231,9 +231,9 @@ jobs:
           # but still want to have debug assertions.
           RUSTFLAGS: "-Cdebug-assertions=y -Dwarnings"
         run: |
-          forklift cargo build --bin polkadot-execute-worker --bin polkadot-prepare-worker --profile testnet --verbose --locked
+          cargo build --bin polkadot-execute-worker --bin polkadot-prepare-worker --profile testnet --verbose --locked
           mkdir -p ./artifacts
-          forklift cargo test --profile testnet --locked --features=runtime-metrics -p polkadot-node-metrics > ./artifacts/log.txt
+          cargo test --profile testnet --locked --features=runtime-metrics -p polkadot-node-metrics > ./artifacts/log.txt
           echo "Metrics test passed"
 
       - name: Upload artifacts if failed
@@ -258,8 +258,8 @@ jobs:
 
       - name: script
         run: |
-          forklift cargo test --locked --manifest-path ./substrate/primitives/tracing/Cargo.toml --no-default-features
-          forklift cargo test --locked --manifest-path ./substrate/primitives/tracing/Cargo.toml --no-default-features --features=with-tracing
+          cargo test --locked --manifest-path ./substrate/primitives/tracing/Cargo.toml --no-default-features
+          cargo test --locked --manifest-path ./substrate/primitives/tracing/Cargo.toml --no-default-features --features=with-tracing
 
   check-metadata-hash:
     timeout-minutes: 20
@@ -274,7 +274,7 @@ jobs:
 
       - name: script
         run: |
-          forklift cargo build --locked -p westend-runtime --features metadata-hash
+          cargo build --locked -p westend-runtime --features metadata-hash
 
   # disabled until https://github.com/paritytech/polkadot-sdk/issues/5812 is resolved
   # cargo-hfuzz:
@@ -305,10 +305,10 @@ jobs:
   #     - name: Run honggfuzz
   #       run: |
   #         cd substrate/primitives/arithmetic/fuzzer
-  #         forklift cargo hfuzz build
+  #         cargo hfuzz build
   #         for target in $(cargo read-manifest | jq -r '.targets | .[] | .name');
   #         do
-  #           forklift cargo hfuzz run "$target" || { printf "fuzzing failure for %s\n" "$target"; exit 1; };
+  #           cargo hfuzz run "$target" || { printf "fuzzing failure for %s\n" "$target"; exit 1; };
   #         done
 
   #     - name: Upload artifacts
@@ -349,7 +349,7 @@ jobs:
     timeout-minutes: 30
     needs: [preflight]
     runs-on: ${{ needs.preflight.outputs.RUNNER_MACOS }}
-    if: ${{ needs.preflight.outputs.changes_rust }}
+    if: ${{ github.repository == 'paritytech/polkadot-sdk' && needs.preflight.outputs.changes_rust }}
     env:
       SKIP_WASM_BUILD: 1
     steps:
@@ -400,7 +400,7 @@ jobs:
           cargo check --workspace --locked
 
   confirm-required-test-misc-jobs-passed:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     name: All test misc tests passed
     # If any new job gets added, be sure to add it to this array
     needs:

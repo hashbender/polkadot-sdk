@@ -32,7 +32,7 @@ jobs:
     name: Fetch runtime specs
     outputs:
       specs: ${{ steps.get-list.outputs.specs }}
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     steps:
       - name: Checkout the repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -46,7 +46,7 @@ jobs:
 
   check-runtimes:
     name: Check runtime specs
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     needs:
       - find-specs
 

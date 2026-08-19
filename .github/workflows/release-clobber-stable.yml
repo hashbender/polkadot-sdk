@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   clobber-stable:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     timeout-minutes: 5
     env:
         STABLE: stable

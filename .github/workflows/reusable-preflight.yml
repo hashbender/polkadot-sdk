@@ -38,7 +38,7 @@ on:
       RUNNER_OLDLINUX:
         value: ${{ jobs.preflight.outputs.RUNNER_OLDLINUX }}
         description: |
-          parity-oldlinux
+          tenki-standard-large-plus-16c-32g
           By default we use spot machines that can be terminated at any time.
           Merge queues use persistent runners to avoid kicking off from queue when the runner is terminated.
       RUNNER_DEFAULT:
@@ -75,7 +75,7 @@ jobs:
   #
   #
   preflight:
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     outputs:
       changes_rust: ${{ steps.set_changes.outputs.rust_any_changed || steps.set_changes.outputs.currentWorkflow_any_changed }}
       changes_currentWorkflow: ${{ steps.set_changes.outputs.currentWorkflow_any_changed }}
@@ -142,20 +142,20 @@ jobs:
         id: set_runner
         shell: bash
         run: |
-          echo "RUNNER_WEIGHTS=parity-weights" >> $GITHUB_OUTPUT
+          echo "RUNNER_WEIGHTS=tenki-standard-large-plus-16c-32g" >> $GITHUB_OUTPUT
           echo "RUNNER_MACOS=parity-macos" >> $GITHUB_OUTPUT
           #
           # Run merge queues on persistent runners
           if [[ $GITHUB_REF_NAME == *"gh-readonly-queue"* ]]; then
-            echo "RUNNER=parity-large-persistent" >> $GITHUB_OUTPUT
-            echo "RUNNER_OLDLINUX=parity-oldlinux-persistent" >> $GITHUB_OUTPUT
-            echo "RUNNER_BENCHMARK=parity-benchmark-persistent" >> $GITHUB_OUTPUT
-            echo "RUNNER_DEFAULT=parity-default-persistent" >> $GITHUB_OUTPUT
+            echo "RUNNER=tenki-standard-large-plus-16c-32g" >> $GITHUB_OUTPUT
+            echo "RUNNER_OLDLINUX=tenki-standard-large-plus-16c-32g" >> $GITHUB_OUTPUT
+            echo "RUNNER_BENCHMARK=tenki-standard-large-plus-16c-32g-persistent" >> $GITHUB_OUTPUT
+            echo "RUNNER_DEFAULT=tenki-standard-medium-4c-8g-persistent" >> $GITHUB_OUTPUT
           else
-            echo "RUNNER=parity-large" >> $GITHUB_OUTPUT
-            echo "RUNNER_OLDLINUX=parity-oldlinux" >> $GITHUB_OUTPUT
-            echo "RUNNER_BENCHMARK=parity-benchmark" >> $GITHUB_OUTPUT
-            echo "RUNNER_DEFAULT=parity-default" >> $GITHUB_OUTPUT
+            echo "RUNNER=tenki-standard-large-plus-16c-32g" >> $GITHUB_OUTPUT
+            echo "RUNNER_OLDLINUX=tenki-standard-large-plus-16c-32g" >> $GITHUB_OUTPUT
+            echo "RUNNER_BENCHMARK=tenki-standard-large-plus-16c-32g" >> $GITHUB_OUTPUT
+            echo "RUNNER_DEFAULT=tenki-standard-medium-4c-8g" >> $GITHUB_OUTPUT
           fi
 
       #
@@ -186,7 +186,7 @@ jobs:
   #
   ci-versions:
     needs: [preflight]
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     container:
       image: ${{ needs.preflight.outputs.IMAGE }}
     steps:

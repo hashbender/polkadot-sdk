@@ -47,7 +47,7 @@ jobs:
   validate-inputs:
     needs: [ check-synchronization ]
     if: needs.check-synchronization.outputs.checks_passed == 'true'
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-medium-4c-8g
     outputs:
       release_tag: ${{ steps.validate_inputs.outputs.release_tag }}
       final_tag: ${{ steps.validate_inputs.outputs.final_tag }}
