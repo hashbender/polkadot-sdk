@@ -101,8 +101,10 @@ jobs:
             # Extracting the original PR number from the backport's PR title
             original_pr_number=$(extract_pr_number_from_pr_title "$PR_TITLE")
             echo "Extracted PR number: $original_pr_number"
-          else
+          elif [[ "$GITHUB_REPOSITORY" == "paritytech/polkadot-sdk" ]]; then
             original_pr_number=${{ github.event.pull_request.number }}
+          else
+            original_pr_number="${GITHUB_HEAD_REF#mirror/pr-}"
           fi
           echo "PR_NUMBER=$original_pr_number" >> $GITHUB_ENV
 

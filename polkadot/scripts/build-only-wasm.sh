@@ -15,7 +15,7 @@ WASM_BUILDER_RUNNER="$PROJECT_ROOT/target/release/wbuild-runner/$1"
 
 fl_cargo () {
     if command -v forklift >/dev/null 2>&1; then
-        forklift cargo "$@";
+        cargo "$@";
     else
         cargo "$@";
     fi
